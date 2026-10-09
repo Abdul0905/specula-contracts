@@ -153,3 +153,61 @@ fn agent_cannot_submit_score_above_100() {
     client.authorize_agent(&admin, &agent);
     client.flag_anomaly(&agent, &subject, &101);
 }
+
+#[test]
+#[should_panic(expected = "unauthorized")]
+fn set_threshold_rejects_non_admin() {
+    let env = Env::default();
+    let contract_id = env.register(StellarSentinel, ());
+    let client = StellarSentinelClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    env.mock_all_auths();
+
+    client.initialize(&admin, &75);
+    // Positive control: the real admin succeeds.
+    client.set_threshold(&admin, &80);
+    assert_eq!(client.get_threshold(), 80);
+    // Non-admin is rejected by require_admin.
+    client.set_threshold(&stranger, &90);
+}
+
+#[test]
+#[should_panic(expected = "unauthorized")]
+fn authorize_agent_rejects_non_admin() {
+    let env = Env::default();
+    let contract_id = env.register(StellarSentinel, ());
+    let client = StellarSentinelClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    env.mock_all_auths();
+
+    client.initialize(&admin, &75);
+    // Positive control: the real admin succeeds.
+    client.authorize_agent(&admin, &agent);
+    assert!(client.is_agent(&agent));
+    // Non-admin is rejected by require_admin.
+    client.authorize_agent(&stranger, &agent);
+}
+
+#[test]
+#[should_panic(expected = "unauthorized")]
+fn revoke_agent_rejects_non_admin() {
+    let env = Env::default();
+    let contract_id = env.register(StellarSentinel, ());
+    let client = StellarSentinelClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let agent = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    env.mock_all_auths();
+
+    client.initialize(&admin, &75);
+    client.authorize_agent(&admin, &agent);
+    // Positive control: the real admin succeeds.
+    client.revoke_agent(&admin, &agent);
+    assert!(!client.is_agent(&agent));
+    client.authorize_agent(&admin, &agent);
+    // Non-admin is rejected by require_admin.
+    client.revoke_agent(&stranger, &agent);
+}
